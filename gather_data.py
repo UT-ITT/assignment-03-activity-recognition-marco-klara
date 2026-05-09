@@ -66,7 +66,6 @@ def main():
 
     id = 0 # id of every sample
     data = []  # List to store data 
-    timestamp = time.time()
     duration = 10  # 10 seconds
     interval = 0.01  # 100 Hz -> 0.01 seconds per sample
     samples = int(duration / interval)  # in this case should be 1000
@@ -74,6 +73,8 @@ def main():
     print("Collecting Data for 10 seconds:")
 
     for i in range(samples):
+        # Get time of the sample
+        timestamp = time.time()
 
         # Collect sensor values of this step
         data_point = {
@@ -95,7 +96,7 @@ def main():
     print(f"Collected {len(data)} data points.")
 
     # Save as CSV file
-    filename = 'data/marcoschneider-running-1.csv' 
+    filename = 'data/marcoschneider/marcoschneider-rowing-4.csv' 
     df = pandas.DataFrame(data)
     df.to_csv(filename, index=False)
     print(f"Data saved to {filename}")
