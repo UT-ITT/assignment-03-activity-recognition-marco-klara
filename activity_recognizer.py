@@ -1,7 +1,8 @@
 from pathlib import Path
-
+import numpy as np
 import pandas as pd
 from sklearn.preprocessing import scale, StandardScaler, MinMaxScaler
+from scipy.signal import find_peaks
 
 
 THIS_DIR = Path(__file__).resolve().parent
@@ -58,6 +59,45 @@ def load_all_csv_data(data_dir: Path = DATA_DIR) -> pd.DataFrame:
 
     return df
 
+# helper function to calculate frequency features
+def fft_features(signal):
+    signal = np.array(signal)
+
+    # Fast fourier transformation
+    fft_values = np.fft.rfft(signal)
+    fft_magnitude = np.abs(fft_values)
+
+    # frequency features
+    energy = np.sum(fft_magnitude ** 2)
+    dominant_freq = np.argmax(fft_magnitude)
+    spectral_mean = np.mean(fft_magnitude)
+
+    return energy, dominant_freq, spectral_mean
+
+# helper function to calculate signal energy
+def signal_energy(signal):
+    signal = np.array(signal)
+    return np.sum(signal ** 2)
+
+
+# helper function to calculate signal entropy
+def entropy (signal, bins = 10):
+    hist, _ = np.histogram(signal, bins=bins, density=True)
+    hist = hist[hist > 0]
+    return -np.sum(hist * np.log2(hist))
+
+# helper function to calculate zero crossing rate
+def zero_crossing_rate(signal):
+    signal = np.array(signal)
+    return np.sum(np.diff(np.sign(signal)) != 0) / len(signal)
+
+# helper function to calculate peak count
+
+def peak_count(signal):
+    peaks, _ = find_peaks(signal)
+    return len(peaks)
+
+# Calculate features of sample data and store them in a new Dataframe
 def csv_feature_extraction(data_directory):
 
     folder = data_directory
@@ -120,6 +160,16 @@ def csv_feature_extraction(data_directory):
                 features[f"{col}_q75"] = column.quantile(0.75)
                 features[f"{col}_iqr"] = (column.quantile(0.75) - column.quantile(0.25))
                 features[f"{col}_skew"] = column.skew()
+                features[f"{col}_energy"] = signal_energy(column)
+                features[f"{col}_entropy"] = entropy(column)
+                features[f"{col}_zecr"] = zero_crossing_rate(column)
+                features[f"{col}_peaks"] = peak_count(column)
+
+                energy_f, dom_freq, spec_mean = fft_features(column)
+                features[f"{col}_fft_energy"] = energy_f
+                features[f"{col}_dom_freq"] = dom_freq
+                features[f"{col}_spectral_mean"] = spec_mean
+                
 
         all_features.append(features)
     
