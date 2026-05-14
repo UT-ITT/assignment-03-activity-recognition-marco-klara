@@ -2,8 +2,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import scale, StandardScaler, MinMaxScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, roc_auc_score
 from scipy.signal import find_peaks
 
+from tabpfn import TabPFNClassifier
+from tabpfn.constants import ModelVersion
 
 THIS_DIR = Path(__file__).resolve().parent
 DATA_DIR = THIS_DIR.parent / "assignment-03-training-data-join-this-team-to-upload-your-data"
@@ -142,35 +146,33 @@ def csv_feature_extraction(data_directory):
             continue
 
         activity = parts[1]
-
-        features = {
-            "activity": activity,
-        }
         
+        features = {"activity": activity,}
+             
         for col in df.columns:
             if (col in valid_columns):
                 column = df[col]
 
-                features[f"{col}_mean"] = column.mean()
-                features[f"{col}_std"] = column.std()
-                features[f"{col}_min"] = column.min()
-                features[f"{col}_max"] = column.max()
-                features[f"{col}_median"] = column.median()
-                features[f"{col}_q25"] = column.quantile(0.25)
-                features[f"{col}_q75"] = column.quantile(0.75)
-                features[f"{col}_iqr"] = (column.quantile(0.75) - column.quantile(0.25))
-                features[f"{col}_skew"] = column.skew()
-                features[f"{col}_energy"] = signal_energy(column)
-                features[f"{col}_entropy"] = entropy(column)
-                features[f"{col}_zecr"] = zero_crossing_rate(column)
-                features[f"{col}_peaks"] = peak_count(column)
+                features[f"{col}_mean"] = column.mean() 
+                features[f"{col}_std"] = column.std() 
+                features[f"{col}_min"] = column.min() 
+                features[f"{col}_max"] = column.max() 
+                features[f"{col}_median"] = column.median() 
+                features[f"{col}_q25"] = column.quantile(0.25) 
+                features[f"{col}_q75"] = column.quantile(0.75) 
+                features[f"{col}_iqr"] = (column.quantile(0.75) - column.quantile(0.25)) 
+                features[f"{col}_skew"] = column.skew() 
+                features[f"{col}_energy"] = signal_energy(column) 
+                features[f"{col}_entropy"] = entropy(column)    
+                features[f"{col}_zecr"] = zero_crossing_rate(column) 
+                features[f"{col}_peaks"] = peak_count(column)  
 
                 energy_f, dom_freq, spec_mean = fft_features(column)
-                features[f"{col}_fft_energy"] = energy_f
-                features[f"{col}_dom_freq"] = dom_freq
-                features[f"{col}_spectral_mean"] = spec_mean
-                
 
+                features[f"{col}_fft_energy"] = energy_f 
+                features[f"{col}_dom_freq"] = dom_freq 
+                features[f"{col}_spectral_mean"] = spec_mean 
+                    
         all_features.append(features)
     
     feature_df = pd.DataFrame(all_features)
@@ -178,14 +180,33 @@ def csv_feature_extraction(data_directory):
     return feature_df
 
 data = csv_feature_extraction(DATA_DIR)
-data.to_csv("debug.csv")
-print(data.columns)
-print(data.head(5))
+print (len(data))
 
-#data = load_all_csv_data()
-#modified_data = modify_data(data)
-#print(f"Loaded {len(data)} rows")
-#print(modified_data)
+# debug
+#data.to_csv("debug.csv")
+#print(data.columns)
+#print(data.head(5))
+
+# Set features and target columns
+
+features = data.drop(columns=["activity"])
+
+target = data["activity"]
+
+X_train, X_test, y_train, y_test = train_test_split(features, target, 
+                                                    test_size = 0.2, random_state = 42)
+
+# initialize classifier
+clf = TabPFNClassifier.create_default_for_version(
+    ModelVersion.V2)
+
+clf.fit(X_train, y_train)
+
+# check prediction accuracies
+
+predictions = clf.predict(X_test)
+print("Accuracy", accuracy_score(y_test, predictions))
+
 
 
 
