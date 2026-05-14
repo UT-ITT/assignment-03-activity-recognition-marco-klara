@@ -2,7 +2,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import scale, StandardScaler, MinMaxScaler
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GroupShuffleSplit
 from sklearn.metrics import accuracy_score, roc_auc_score
 from scipy.signal import find_peaks
 
@@ -146,8 +146,10 @@ def csv_feature_extraction(data_directory):
             continue
 
         activity = parts[1]
+        name = parts[0]
         
-        features = {"activity": activity,}
+        features = {"name" : name,
+            "activity": activity,}
              
         for col in df.columns:
             if (col in valid_columns):
@@ -193,8 +195,24 @@ features = data.drop(columns=["activity"])
 
 target = data["activity"]
 
-X_train, X_test, y_train, y_test = train_test_split(features, target, 
-                                                    test_size = 0.2, random_state = 42)
+
+# Create random train test split
+#X_train, X_test, y_train, y_test = train_test_split(features, target, 
+ #                                                   test_size = 0.1, random_state = 42)
+
+#create group train test split to reduce bias
+
+gss = GroupShuffleSplit(test_size=0.2, random_state=42)
+
+names = data["name"]
+
+train_idx, test_idx = next (gss.split(features, target, groups=names))
+
+X_train, X_test = features.iloc[train_idx], features.iloc[test_idx]
+y_train, y_test = target.iloc[train_idx], target.iloc[test_idx]
+
+print(data.iloc[test_idx])
+
 
 # initialize classifier
 clf = TabPFNClassifier.create_default_for_version(
