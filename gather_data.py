@@ -57,8 +57,13 @@ def handle_button_1(data):
 
 sensor.register_callback('button_1', handle_button_1)
 
+# define duration of the recording and the sample interval 
+duration = 10  # 10 seconds
+interval = 0.01  # 100 Hz -> 0.01 seconds per sample
+
 # Main loop to collect data at 100 Hz for 10 seconds (1000 data points)
 def main():
+    global duration, interval
 
     print("Press Button_1 to start recording")
     while (button_pressed != True):
@@ -66,8 +71,6 @@ def main():
 
     id = 0 # id of every sample
     data = []  # List to store data 
-    duration = 10  # 10 seconds
-    interval = 0.01  # 100 Hz -> 0.01 seconds per sample
     samples = int(duration / interval)  # in this case should be 1000
 
     print("Collecting Data for 10 seconds:")

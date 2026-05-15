@@ -12,10 +12,12 @@ from scipy.signal import find_peaks
 
 import DIPPID
 
-from gather_data import sensor, handle_acceleration, handle_gyro
+from gather_data import sensor, handle_acceleration, handle_gyro, interval, duration
 
 from tabpfn import TabPFNClassifier
 from tabpfn.constants import ModelVersion
+# ignore standard limit of 10000 samples
+ignore_pretraining_limits=True
 
 THIS_DIR = Path(__file__).resolve().parent
 DATA_DIR = THIS_DIR.parent / "assignment-03-training-data-join-this-team-to-upload-your-data"
@@ -83,16 +85,19 @@ def fft_features(signal):
     fft_magnitude = np.abs(fft_values)
 
     # frequency features
-    energy = np.sum(fft_magnitude ** 2)
-    dominant_freq = np.argmax(fft_magnitude)
+    fft_energy_mean = np.mean(fft_magnitude ** 2)
+
+    frequencies = np.fft.rfftfreq(len(signal), d = interval)
+    dominant_freq = frequencies[np.argmax(fft_magnitude)]
+
     spectral_mean = np.mean(fft_magnitude)
 
-    return energy, dominant_freq, spectral_mean
+    return fft_energy_mean, dominant_freq, spectral_mean
 
-# helper function to calculate signal energy
-def signal_energy(signal):
+# helper function to calculate signal energy mean
+def signal_energy_mean(signal):
     signal = np.array(signal)
-    return np.sum(signal ** 2)
+    return np.mean(signal ** 2)
 
 
 # helper function to calculate signal entropy
@@ -107,9 +112,9 @@ def zero_crossing_rate(signal):
     return np.sum(np.diff(np.sign(signal)) != 0) / len(signal)
 
 # helper function to calculate peak count
-def peak_count(signal):
+def peak_rate(signal):
     peaks, _ = find_peaks(signal)
-    return len(peaks)
+    return len(peaks) / duration
 
 # only allow certain columns for feature extraction
 valid_columns = ("acc_x", "acc_y", "acc_z","gyro_x", "gyro_y", "gyro_z")
@@ -130,18 +135,28 @@ def calc_features(df):
                 features[f"{col}_q75"] = column.quantile(0.75) 
                 features[f"{col}_iqr"] = (column.quantile(0.75) - column.quantile(0.25)) 
                 features[f"{col}_skew"] = column.skew() 
-                features[f"{col}_energy"] = signal_energy(column) 
-                features[f"{col}_entropy"] = entropy(column)    
+                features[f"{col}_energy_mean"] = signal_energy_mean(column) 
+                #features[f"{col}_entropy"] = entropy(column)     very dependent on data size, bad for 1s window in live recognition
                 features[f"{col}_zecr"] = zero_crossing_rate(column) 
-                features[f"{col}_peaks"] = peak_count(column)  
+                features[f"{col}_peak_rate"] = peak_rate(column)  
 
-                energy_f, dom_freq, spec_mean = fft_features(column)
+                energy_fft, dom_freq, spec_mean = fft_features(column)
 
-                features[f"{col}_fft_energy"] = energy_f 
+                features[f"{col}_fft_energy__mean"] = energy_fft
                 features[f"{col}_dom_freq"] = dom_freq 
                 features[f"{col}_spectral_mean"] = spec_mean 
 
     return features
+
+# Use windowing to increase the amount of training data and scale down the activity duration
+def create_windows(df, window_size, stride):
+    windows = []
+
+    for start in range(0, len(df)-window_size + 1, stride):
+        end = start + window_size
+        window = df.iloc[start:end]
+        windows.append(window)
+    return windows
 
 # Calculate features of sample data and store them in a new Dataframe
 def csv_feature_extraction(data_directory):
@@ -180,28 +195,34 @@ def csv_feature_extraction(data_directory):
         parts = filename_without_suffix.split("-")
 
         # print error if the file doesnt have the right format i.e. name-activity-number.csv
-        if len(parts) > 3:
+        if len(parts) != 3:
             print(f"wrong fileformat: {file.name}")
             continue
 
         activity = parts[1]
         name = parts[0]
         
-        # insert name and activity into a new row
-        features = {"name" : name,
-            "activity": activity,} 
-        
-        # append calculated features
-        features.update(calc_features(df))
-        
-        # append this row of features to all features
-        all_features.append(features)
+        # split data into windows
+        windows = create_windows(df, 100, 20)
+
+        for window in windows:
+            # insert name and activity into a new row
+            features = {"name" : name,
+                "activity": activity,} 
+            
+            # append calculated features
+            features.update(calc_features(window))
+            
+            # append this row of features to all features
+            all_features.append(features)
     
     # convert list of features into a pandas dataframe
     feature_df = pd.DataFrame(all_features)
 
     return feature_df
 
+
+# apply windowing with a window size of 100 (1 second) and stride of 20 (0.2 seconds)
 data = csv_feature_extraction(DATA_DIR)
 
 # debug
@@ -230,8 +251,8 @@ X_train, X_test = features.iloc[train_idx], features.iloc[test_idx]
 y_train, y_test = target.iloc[train_idx], target.iloc[test_idx]
 
 # initialize classifier
-#clf = TabPFNClassifier.create_default_for_version(
- #   ModelVersion.V2)
+clf = TabPFNClassifier.create_default_for_version(
+    ModelVersion.V2)
 
 clf = RandomForestClassifier(
     n_estimators=100,
@@ -295,3 +316,4 @@ if __name__ == "__main__":
 
 
 
+TRAININGSDATEN SKALIEREN NÄCHSTER SCHRITT
