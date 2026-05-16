@@ -3,78 +3,16 @@ import numpy as np
 import pandas as pd
 import time
 
-from sklearn.preprocessing import scale, StandardScaler, MinMaxScaler
-from sklearn.model_selection import train_test_split, GroupShuffleSplit
-from sklearn.metrics import accuracy_score, roc_auc_score
+from sklearn.model_selection import GroupShuffleSplit
+from sklearn.metrics import accuracy_score, f1_score
 from sklearn.ensemble import RandomForestClassifier
 
 from scipy.signal import find_peaks
 
-import DIPPID
-
 from gather_data import sensor, handle_acceleration, handle_gyro, interval, duration
-
-from tabpfn import TabPFNClassifier
-from tabpfn.constants import ModelVersion
-# ignore standard limit of 10000 samples
-ignore_pretraining_limits=True
 
 THIS_DIR = Path(__file__).resolve().parent
 DATA_DIR = THIS_DIR.parent / "assignment-03-training-data-join-this-team-to-upload-your-data"
-
-# use UDP
-#PORT = 5700
-#sensor = DIPPID.SensorUDP(PORT)
-
-
-def modify_data(df):
-    df = df.dropna()
-    df = df[(df["gyro_x"] != 0) & (df["gyro_y"] != 0) & (df["gyro_z"] != 0)]
-    df = df.drop(["id"], axis=1)
-    
-    s_scaler = StandardScaler()
-    scaled_samples = s_scaler.fit_transform(df[['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']])
-    df_mean = df.copy()
-    df_mean[['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']] = scaled_samples
-
-    m_scalar = MinMaxScaler()
-    m_scalar.fit(df_mean[['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']])
-
-    scaled_samples = m_scalar.transform(df_mean[['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']])
-    df_normalized = df_mean.copy()
-    df_normalized[['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']] = scaled_samples
-
-    df_normalized['class'] = 0
-    df_normalized.loc[df_normalized['activity'] == 'rowing', 'class'] = 1    
-    df_normalized.loc[df_normalized['activity'] == 'jumpingjacks', 'class'] = 2
-    df_normalized.loc[df_normalized['activity'] == 'lifting', 'class'] = 3
-
-    return df_normalized
-
-
-def load_all_csv_data(data_dir: Path = DATA_DIR) -> pd.DataFrame:
-    frames = []
-
-    for csv_file in data_dir.rglob("*.csv"):
-        parts = csv_file.stem.split("-")
-        activity = parts[1] if len(parts) >= 3 else None
-
-        df = pd.read_csv(csv_file)
-
-        if "id" in df.columns and "id.1" in df.columns:
-            df = df.drop(columns=["id.1"])
-
-        df = df.assign(
-            activity=activity,
-        )
-        frames.append(df)
-
-    if not frames:
-        return pd.DataFrame()
-    
-    df = pd.concat(frames, ignore_index=True)
-
-    return df
 
 # helper function to calculate frequency features
 def fft_features(signal):
@@ -98,13 +36,6 @@ def fft_features(signal):
 def signal_energy_mean(signal):
     signal = np.array(signal)
     return np.mean(signal ** 2)
-
-
-# helper function to calculate signal entropy
-def entropy (signal, bins = 10):
-    hist, _ = np.histogram(signal, bins=bins, density=True)
-    hist = hist[hist > 0]
-    return -np.sum(hist * np.log2(hist))
 
 # helper function to calculate zero crossing rate
 def zero_crossing_rate(signal):
@@ -136,7 +67,6 @@ def calc_features(df):
                 features[f"{col}_iqr"] = (column.quantile(0.75) - column.quantile(0.25)) 
                 features[f"{col}_skew"] = column.skew() 
                 features[f"{col}_energy_mean"] = signal_energy_mean(column) 
-                #features[f"{col}_entropy"] = entropy(column)     very dependent on data size, bad for 1s window in live recognition
                 features[f"{col}_zecr"] = zero_crossing_rate(column) 
                 features[f"{col}_peak_rate"] = peak_rate(column)  
 
@@ -203,7 +133,7 @@ def csv_feature_extraction(data_directory):
         name = parts[0]
         
         # split data into windows
-        windows = create_windows(df, 100, 20)
+        windows = create_windows(df, 100, 25)
 
         for window in windows:
             # insert name and activity into a new row
@@ -236,10 +166,6 @@ features = data.drop(columns=["activity", "name"])
 
 target = data["activity"]
 
-# Create random train test split
-#X_train, X_test, y_train, y_test = train_test_split(features, target, 
- #                                                   test_size = 0.1, random_state = 42)
-
 #create group train test split to reduce bias
 gss = GroupShuffleSplit(test_size=0.2, random_state=42)
 
@@ -250,9 +176,7 @@ train_idx, test_idx = next (gss.split(features, target, groups=names))
 X_train, X_test = features.iloc[train_idx], features.iloc[test_idx]
 y_train, y_test = target.iloc[train_idx], target.iloc[test_idx]
 
-# initialize classifier
-clf = TabPFNClassifier.create_default_for_version(
-    ModelVersion.V2)
+print(X_test)
 
 clf = RandomForestClassifier(
     n_estimators=100,
@@ -264,7 +188,8 @@ clf.fit(X_train, y_train)
 
 # check prediction accuracies
 predictions = clf.predict(X_test)
-print("Accuracy", accuracy_score(y_test, predictions))
+print("Accuracy: ", accuracy_score(y_test, predictions))
+print("F1-score: ", f1_score(y_test, predictions, average = None))
 
 # variables for sensor data
 acc_x, acc_y, acc_z = 0, 0, 0
@@ -311,9 +236,5 @@ def main():
         print(current_prediction)
 
 
-if __name__ == "__main__":
-    main()
-
-
-
-TRAININGSDATEN SKALIEREN NÄCHSTER SCHRITT
+#if __name__ == "__main__":
+ #   main()
