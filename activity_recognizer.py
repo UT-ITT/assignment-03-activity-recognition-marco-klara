@@ -30,7 +30,13 @@ def fft_features(signal):
 
     spectral_mean = np.mean(fft_magnitude)
 
-    return fft_energy_mean, dominant_freq, spectral_mean
+    spectral_centroid = np.sum(frequencies * fft_magnitude) / np.sum(fft_magnitude)
+
+    band_power_low = np.sum(fft_magnitude[(frequencies >= 0) & (frequencies < 2)])
+    band_power_mid = np.sum(fft_magnitude[(frequencies >= 2) & (frequencies < 5)])
+    band_power_high = np.sum(fft_magnitude[(frequencies >= 5) & (frequencies < 10)])
+
+    return fft_energy_mean, dominant_freq, spectral_mean, spectral_centroid, band_power_low, band_power_mid, band_power_high
 
 # helper function to calculate signal energy mean
 def signal_energy_mean(signal):
@@ -46,6 +52,8 @@ def zero_crossing_rate(signal):
 def peak_rate(signal):
     peaks, _ = find_peaks(signal)
     return len(peaks) / duration
+
+
 
 # only allow certain columns for feature extraction
 valid_columns = ("acc_x", "acc_y", "acc_z","gyro_x", "gyro_y", "gyro_z")
@@ -66,15 +74,21 @@ def calc_features(df):
                 features[f"{col}_q75"] = column.quantile(0.75) 
                 features[f"{col}_iqr"] = (column.quantile(0.75) - column.quantile(0.25)) 
                 features[f"{col}_skew"] = column.skew() 
+                features[f"{col}_variance"] = column.var()
                 features[f"{col}_energy_mean"] = signal_energy_mean(column) 
                 features[f"{col}_zecr"] = zero_crossing_rate(column) 
                 features[f"{col}_peak_rate"] = peak_rate(column)  
 
-                energy_fft, dom_freq, spec_mean = fft_features(column)
+                energy_fft_mean, dom_freq, spec_mean, spec_centroid, band_low, band_mid, band_high = fft_features(column)
 
-                features[f"{col}_fft_energy__mean"] = energy_fft
+                features[f"{col}_fft_energy__mean"] = energy_fft_mean
                 features[f"{col}_dom_freq"] = dom_freq 
                 features[f"{col}_spectral_mean"] = spec_mean 
+                features[f"{col}_spectral_centroid"] = spec_centroid
+
+                features [f"{col}_band_power_low"] = band_low
+                features [f"{col}_band_power_mid"] = band_mid
+                features [f"{col}_band_power_high"] = band_high
 
     return features
 
@@ -133,7 +147,7 @@ def csv_feature_extraction(data_directory):
         name = parts[0]
         
         # split data into windows
-        windows = create_windows(df, 100, 25)
+        windows = create_windows(df, 100, 20)
 
         for window in windows:
             # insert name and activity into a new row
@@ -156,7 +170,7 @@ def csv_feature_extraction(data_directory):
 data = csv_feature_extraction(DATA_DIR)
 
 # debug
-#print (len(data))
+print (len(data))
 #data.to_csv("debug.csv")
 #print(data.columns)
 #print(data.head(5))
@@ -175,8 +189,6 @@ train_idx, test_idx = next (gss.split(features, target, groups=names))
 
 X_train, X_test = features.iloc[train_idx], features.iloc[test_idx]
 y_train, y_test = target.iloc[train_idx], target.iloc[test_idx]
-
-print(X_test)
 
 clf = RandomForestClassifier(
     n_estimators=100,
