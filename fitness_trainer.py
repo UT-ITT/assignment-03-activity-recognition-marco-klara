@@ -2,8 +2,7 @@
 
 #import activity_recognizer as activity
 import pyglet
-from pyglet import window, shapes
-import sys
+from pyglet import window
 import random
 import math
 
@@ -34,6 +33,8 @@ sprite = None
 timer_running = True
 remaining_time = 10.0
 
+current_prediction = "jumpingjacks"
+
 timer = pyglet.text.Label(str(math.ceil(remaining_time)),
                           font_name='Calibri',
                           font_size=100,
@@ -50,7 +51,6 @@ motivation = pyglet.text.Label("Keep going!",
                           x=WINDOW_WIDTH//2, y=100,
                           anchor_x='center', anchor_y='center')
 
-current_prediction = "jumpingjacks"
 
 
 def fit_sprite_to_window(activity_name, top_margin=TOP_MARGIN, bottom_margin=BOTTOM_MARGIN, max_scale=MAX_SCALE):
