@@ -12,7 +12,9 @@ from scipy.signal import find_peaks
 from gather_data import sensor, handle_acceleration, handle_gyro, interval, duration
 
 THIS_DIR = Path(__file__).resolve().parent
-DATA_DIR = THIS_DIR.parent / "assignment-03-training-data-join-this-team-to-upload-your-data"
+DATA_DIR = THIS_DIR / "data"
+
+print(DATA_DIR)
 
 # helper function to calculate frequency features
 def fft_features(signal):
