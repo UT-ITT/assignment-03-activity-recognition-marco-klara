@@ -48,6 +48,7 @@ MAX_SCALE = 0.7
 win = window.Window(WINDOW_WIDTH, WINDOW_HEIGHT, config=config)
 pyglet.gl.glClearColor(0.83, 0.83, 0.83, 1.0)
 
+# list of activities and the path to their visualization
 activities = {
     "running": ["img/running_1.png", "img/running_2.png"],
     "rowing": ["img/rowing_1.png", "img/rowing_2.png"],
@@ -55,6 +56,7 @@ activities = {
     "jumpingjacks": ["img/jumpingjack_1.png", "img/jumpingjack_2.png"],
 }
 
+# variables for changing activity functionality 
 current_activity = None
 frames = []
 frame_index = 0
@@ -62,6 +64,7 @@ sprite = None
 timer_running = True
 remaining_time = 10.0
 
+# text labels
 waiting_1 = pyglet.text.Label("Prepare yourself,",
                           font_name='Calibri',
                           font_size=70,
@@ -78,14 +81,6 @@ waiting_2 = pyglet.text.Label("training starts every moment!",
                           x=WINDOW_WIDTH//2, y=WINDOW_HEIGHT//2-150,
                           anchor_x='center', anchor_y='center')
 
-timer = pyglet.text.Label(str(math.ceil(remaining_time)),
-                          font_name='Calibri',
-                          font_size=100,
-                          color=(255, 0, 0, 255),
-                          weight = 'ultrabold',
-                          x=WINDOW_WIDTH//2, y=WINDOW_HEIGHT-100,
-                          anchor_x='center', anchor_y='center')
-
 motivation = pyglet.text.Label("Keep going!",
                           font_name='Calibri',
                           font_size=70,
@@ -94,6 +89,16 @@ motivation = pyglet.text.Label("Keep going!",
                           x=WINDOW_WIDTH//2, y=100,
                           anchor_x='center', anchor_y='center')
 
+# label for timer
+timer = pyglet.text.Label(str(math.ceil(remaining_time)),
+                          font_name='Calibri',
+                          font_size=100,
+                          color=(255, 0, 0, 255),
+                          weight = 'ultrabold',
+                          x=WINDOW_WIDTH//2, y=WINDOW_HEIGHT-100,
+                          anchor_x='center', anchor_y='center')
+
+# function to scale the image to fit into the frame
 def fit_sprite_to_window(activity_name, top_margin=TOP_MARGIN, bottom_margin=BOTTOM_MARGIN, max_scale=MAX_SCALE):
     activity_frames = [pyglet.image.load(path) for path in activities[activity_name]]
     
@@ -106,6 +111,7 @@ def fit_sprite_to_window(activity_name, top_margin=TOP_MARGIN, bottom_margin=BOT
     scale_h = available_height / max_height
     return min(scale_w, scale_h, max_scale)
 
+# functio to load the activity specified by activity_name
 def load_activity(activity_name):
     global current_activity, frames, frame_index, sprite
 
@@ -127,6 +133,7 @@ def load_activity(activity_name):
 
     sprite.scale = scale
 
+# function to switch to the next frame for the activity animation
 def next_frame(dt):
     global frame_index, sprite
     if not frames or sprite is None:
@@ -142,6 +149,7 @@ def next_frame(dt):
     available_height = WINDOW_HEIGHT - TOP_MARGIN - BOTTOM_MARGIN
     sprite.y = BOTTOM_MARGIN + (available_height - img_h) / 2
 
+# function to switch to the next activity
 def switch_activity(dt=None): 
     activity_name = random.choice(list(activities.keys()))
     load_activity(activity_name)
@@ -165,6 +173,7 @@ def sensor_loop():
 
         time.sleep(interval)
 
+# function to predict the executed activity based on the phone data
 def predict_activity(model):
     if model is None:
         return None
@@ -208,7 +217,8 @@ def update(dt):
     if remaining_time <= 0:
         switch_activity()
         remaining_time = 10.0
-    
+
+# draw the different components 
 @win.event
 def on_draw():
     win.clear()
@@ -229,6 +239,7 @@ def on_draw():
         if not timer_running:
             motivation.draw()
 
+# function to close the window when esc is pressed
 @win.event
 def on_key_press(symbol, modifiers):
     if symbol == pyglet.window.key.ESCAPE:
