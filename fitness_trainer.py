@@ -32,23 +32,22 @@ sensor.register_callback('accelerometer', handle_acceleration)
 THIS_DIR = Path(__file__).resolve().parent
 DATA_DIR = THIS_DIR / "data"
 
-# variable for prediction model
+# variables for prediction model
 trained_model = None
+model_ready = False
+current_prediction = None
 
 # Pyglet variables
 config = pyglet.gl.Config(double_buffer=True)
 
-WINDOW_WIDTH = 1500
-WINDOW_HEIGHT = 1000
+WINDOW_WIDTH = 1200
+WINDOW_HEIGHT = 800
 TOP_MARGIN = 160
 BOTTOM_MARGIN = 150
 MAX_SCALE = 0.7
 
 win = window.Window(WINDOW_WIDTH, WINDOW_HEIGHT, config=config)
 pyglet.gl.glClearColor(0.83, 0.83, 0.83, 1.0)
-#background = pyglet.sprite.Sprite(pyglet.image.load("img/background.jpg"), x=0, y=0)
-#background.scale = WINDOW_WIDTH / background.image.width  
-
 
 activities = {
     "running": ["img/running_1.png", "img/running_2.png"],
@@ -64,7 +63,21 @@ sprite = None
 timer_running = True
 remaining_time = 10.0
 
-current_prediction = "jumpingjacks"
+waiting_1 = pyglet.text.Label("Prepare yourself,",
+                          font_name='Calibri',
+                          font_size=70,
+                          color=(0, 0, 0, 255),
+                          weight = 'ultrabold',
+                          x=WINDOW_WIDTH//2, y=WINDOW_HEIGHT//2+150,
+                          anchor_x='center', anchor_y='center')
+
+waiting_2 = pyglet.text.Label("training starts every moment!",
+                          font_name='Calibri',
+                          font_size=70,
+                          color=(0, 0, 0, 255),
+                          weight = 'ultrabold',
+                          x=WINDOW_WIDTH//2, y=WINDOW_HEIGHT//2-150,
+                          anchor_x='center', anchor_y='center')
 
 timer = pyglet.text.Label(str(math.ceil(remaining_time)),
                           font_name='Calibri',
@@ -164,7 +177,6 @@ def predict_activity(model):
         
         # take 100 last samples (1 second of samples)
         window = list(buffer)[-100:]
-        print(len(buffer))
 
         # calculate features for the samples
         df = pd.DataFrame(window)
@@ -176,16 +188,18 @@ def predict_activity(model):
 
 # load csv data and train model
 def load_model():
+    global model_ready
     global trained_model
+
     data = activity.csv_feature_extraction(DATA_DIR)
     trained_model = activity.train_model(data)
+    model_ready = True
     print("Model trained")
 
 def update(dt):
     global remaining_time, timer_running, current_prediction, current_activity
 
     current_prediction = predict_activity(trained_model)
-    print(current_prediction)
   
     # timer runs if prediction == activity
     if current_prediction == current_activity:
@@ -200,17 +214,22 @@ def update(dt):
     
 @win.event
 def on_draw():
-    win.clear() 
-    #background.draw()
+    win.clear()
 
-    timer.text = str(math.ceil(remaining_time))
+    if not model_ready:
+        waiting_1.draw()
+        waiting_2.draw()
 
-    if sprite is not None:
-        sprite.draw()
-    timer.draw()
+    else:
+        timer.text = str(math.ceil(remaining_time))
 
-    if not timer_running:
-        motivation.draw()
+        if sprite is not None:
+            sprite.draw()
+
+        timer.draw()
+
+        if not timer_running:
+            motivation.draw()
 
 # start pyglet
 switch_activity(0)
@@ -221,7 +240,7 @@ pyglet.clock.schedule_interval(update, 1)
 threading.Thread(target = load_model, daemon=True).start()
 
 # start thread to run pyglet and sensor loop simultaneously
-threading.Thread(target=sensor_loop, daemon=True).start()
+threading.Thread(target = sensor_loop, daemon=True).start()
 
 pyglet.app.run()
 
