@@ -2,10 +2,40 @@
 
 #import activity_recognizer as activity
 import pyglet
+from pathlib import Path
 from pyglet import window
 import random
 import math
+import time
+import pandas as pd
+import activity_recognizer as activity
 
+import threading
+from collections import deque
+
+from gather_data import interval, sensor, handle_acceleration, handle_gyro
+import gather_data
+
+# variables for sensor data collection thread
+buffer = deque(maxlen = 100)
+lock = threading.Lock()
+
+# variables for sensor data
+acc_x, acc_y, acc_z = 0, 0, 0
+gyro_x, gyro_y, gyro_z = 0, 0, 0
+
+# handle gyroscope and accelerometer data from the DIPPID device
+sensor.register_callback('gyroscope', handle_gyro)
+sensor.register_callback('accelerometer', handle_acceleration)
+
+# Path variables for the csv data folder
+THIS_DIR = Path(__file__).resolve().parent
+DATA_DIR = THIS_DIR / "data"
+
+# variable for prediction model
+trained_model = None
+
+# Pyglet variables
 config = pyglet.gl.Config(double_buffer=True)
 
 WINDOW_WIDTH = 1500
@@ -15,8 +45,9 @@ BOTTOM_MARGIN = 150
 MAX_SCALE = 0.7
 
 win = window.Window(WINDOW_WIDTH, WINDOW_HEIGHT, config=config)
-background = pyglet.sprite.Sprite(pyglet.image.load("img/background.jpg"), x=0, y=0)
-background.scale = WINDOW_WIDTH / background.image.width  
+pyglet.gl.glClearColor(0.83, 0.83, 0.83, 1.0)
+#background = pyglet.sprite.Sprite(pyglet.image.load("img/background.jpg"), x=0, y=0)
+#background.scale = WINDOW_WIDTH / background.image.width  
 
 
 activities = {
@@ -105,25 +136,72 @@ def switch_activity(dt=None):
     activity_name = random.choice(list(activities.keys()))
     load_activity(activity_name)
 
+# function to collect sensor data
+def sensor_loop():
+    global interval
+
+    while True:
+        # Collect sensor values
+        data_point = {
+            'acc_x': gather_data.acc_x,
+            'acc_y': gather_data.acc_y,
+            'acc_z': gather_data.acc_z,
+            'gyro_x': gather_data.gyro_x,
+            'gyro_y': gather_data.gyro_y,
+            'gyro_z': gather_data.gyro_z
+        }
+        with lock:
+            buffer.append(data_point)
+
+        time.sleep(interval)
+
+def predict_activity(model):
+    if model is None:
+        return None
+    with lock:
+        if len(buffer) < 100: # 100 -> 1s window
+            return None
+        
+        # take 100 last samples (1 second of samples)
+        window = list(buffer)[-100:]
+        print(len(buffer))
+
+        # calculate features for the samples
+        df = pd.DataFrame(window)
+        df_features = activity.calc_features(df)
+
+        # get prediction for the sample
+        prediction = model.predict(pd.DataFrame([df_features]))[0]
+        return prediction
+
+# load csv data and train model
+def load_model():
+    global trained_model
+    data = activity.csv_feature_extraction(DATA_DIR)
+    trained_model = activity.train_model(data)
+    print("Model trained")
+
 def update(dt):
-    global remaining_time, timer_running
-    if not timer_running:
-        return 
-    remaining_time -= dt
+    global remaining_time, timer_running, current_prediction, current_activity
+
+    current_prediction = predict_activity(trained_model)
+    print(current_prediction)
+  
+    # timer runs if prediction == activity
+    if current_prediction == current_activity:
+        timer_running = True
+        remaining_time -= dt
+    else:
+        timer_running = False
+
     if remaining_time <= 0:
         switch_activity()
         remaining_time = 10.0
     
-    if current_prediction != current_activity:
-        timer_running = False
-    else:
-        timer_running = True
-        
-
 @win.event
 def on_draw():
     win.clear() 
-    background.draw()
+    #background.draw()
 
     timer.text = str(math.ceil(remaining_time))
 
@@ -134,9 +212,16 @@ def on_draw():
     if not timer_running:
         motivation.draw()
 
+# start pyglet
 switch_activity(0)
 pyglet.clock.schedule_interval(next_frame, 0.5)
-pyglet.clock.schedule_interval(update, 0.1)
+pyglet.clock.schedule_interval(update, 1)
+
+# start thread to run model training without stalling main loop
+threading.Thread(target = load_model, daemon=True).start()
+
+# start thread to run pyglet and sensor loop simultaneously
+threading.Thread(target=sensor_loop, daemon=True).start()
 
 pyglet.app.run()
 

@@ -14,8 +14,6 @@ from gather_data import sensor, handle_acceleration, handle_gyro, interval, dura
 THIS_DIR = Path(__file__).resolve().parent
 DATA_DIR = THIS_DIR / "data"
 
-print(DATA_DIR)
-
 # helper function to calculate frequency features
 def fft_features(signal):
     signal = np.array(signal)
@@ -54,8 +52,6 @@ def zero_crossing_rate(signal):
 def peak_rate(signal):
     peaks, _ = find_peaks(signal)
     return len(peaks) / duration
-
-
 
 # only allow certain columns for feature extraction
 valid_columns = ("acc_x", "acc_y", "acc_z","gyro_x", "gyro_y", "gyro_z")
@@ -167,88 +163,36 @@ def csv_feature_extraction(data_directory):
 
     return feature_df
 
+def train_model(data):
 
-# apply windowing with a window size of 100 (1 second) and stride of 20 (0.2 seconds)
-data = csv_feature_extraction(DATA_DIR)
+    # Set features and target columns
+    features = data.drop(columns=["activity", "name"])
 
-# debug
-print (len(data))
-#data.to_csv("debug.csv")
-#print(data.columns)
-#print(data.head(5))
+    target = data["activity"]
 
-# Set features and target columns
-features = data.drop(columns=["activity", "name"])
+    #create group train test split to reduce bias
+    gss = GroupShuffleSplit(test_size=0.2, random_state=42)
 
-target = data["activity"]
+    names = data["name"]
 
-#create group train test split to reduce bias
-gss = GroupShuffleSplit(test_size=0.2, random_state=42)
+    train_idx, test_idx = next (gss.split(features, target, groups=names))
 
-names = data["name"]
+    X_train, X_test = features.iloc[train_idx], features.iloc[test_idx]
+    y_train, y_test = target.iloc[train_idx], target.iloc[test_idx]
 
-train_idx, test_idx = next (gss.split(features, target, groups=names))
+    # select classifier
+    clf = RandomForestClassifier(
+        n_estimators=100,
+        max_depth=None,
+        random_state=42
+    )
 
-X_train, X_test = features.iloc[train_idx], features.iloc[test_idx]
-y_train, y_test = target.iloc[train_idx], target.iloc[test_idx]
+    clf.fit(X_train, y_train)
 
-clf = RandomForestClassifier(
-    n_estimators=100,
-    max_depth=None,
-    random_state=42
-)
+    # check prediction accuracies
+    predictions = clf.predict(X_test)
+    print("Accuracy: ", accuracy_score(y_test, predictions))
+    print("F1-score: ", f1_score(y_test, predictions, average = None))
 
-clf.fit(X_train, y_train)
+    return clf
 
-# check prediction accuracies
-predictions = clf.predict(X_test)
-print("Accuracy: ", accuracy_score(y_test, predictions))
-print("F1-score: ", f1_score(y_test, predictions, average = None))
-
-# variables for sensor data
-acc_x, acc_y, acc_z = 0, 0, 0
-gyro_x, gyro_y, gyro_z = 0, 0, 0
-
-# handle gyroscope and accelerometer data from the DIPPID device
-sensor.register_callback('gyroscope', handle_gyro)
-sensor.register_callback('accelerometer', handle_acceleration)
-
-# Main loop to constantly evaluate DIPPID data received
-def main():
-    
-    while True:
-        activity_data = []
-        duration = 2 # seconds
-        interval = 0.01 # 100 Hz -> 0.01 seconds per sample
-        samples = int(duration/interval)
-
-        # collect activity data 
-        for i in range(samples):
-
-            # Collect sensor values
-            data_point = {
-                'acc_x': acc_x,
-                'acc_y': acc_y,
-                'acc_z': acc_z,
-                'gyro_x': gyro_x,
-                'gyro_y': gyro_y,
-                'gyro_z': gyro_z
-            }
-            activity_data.append(data_point)
-            
-            # wait for next sample
-            time.sleep(interval)
-
-        # list to dataframe
-        activity_data_df = pd.DataFrame(activity_data)
-
-        # calculate features (returns dict)
-        activity_data_features = calc_features(activity_data_df)
-
-        # predict activity
-        current_prediction = clf.predict(pd.DataFrame([activity_data_features]))
-        print(current_prediction)
-
-
-#if __name__ == "__main__":
- #   main()
