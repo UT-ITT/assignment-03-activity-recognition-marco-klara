@@ -229,6 +229,11 @@ def on_draw():
         if not timer_running:
             motivation.draw()
 
+@win.event
+def on_key_press(symbol, modifiers):
+    if symbol == pyglet.window.key.ESCAPE:
+        win.close()
+
 # start pyglet
 switch_activity(0)
 pyglet.clock.schedule_interval(next_frame, 0.5)
