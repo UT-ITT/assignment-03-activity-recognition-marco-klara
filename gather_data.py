@@ -1,6 +1,5 @@
 # this program gathers sensor data
 
-import socket
 import time
 import DIPPID
 import pandas
@@ -45,7 +44,6 @@ def handle_gyro(data):
         gyro_z = sensor.get_value('gyroscope')['z']
 
 sensor.register_callback('gyroscope', handle_gyro)
-
 
 # define how to handle button_1 press
 def handle_button_1(data):

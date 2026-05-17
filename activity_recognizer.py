@@ -1,7 +1,6 @@
 from pathlib import Path
 import numpy as np
 import pandas as pd
-import time
 
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.metrics import accuracy_score, f1_score
@@ -9,7 +8,7 @@ from sklearn.ensemble import RandomForestClassifier
 
 from scipy.signal import find_peaks
 
-from gather_data import sensor, handle_acceleration, handle_gyro, interval, duration
+from gather_data import interval, duration
 
 THIS_DIR = Path(__file__).resolve().parent
 DATA_DIR = THIS_DIR / "data"
@@ -30,7 +29,11 @@ def fft_features(signal):
 
     spectral_mean = np.mean(fft_magnitude)
 
-    spectral_centroid = np.sum(frequencies * fft_magnitude) / np.sum(fft_magnitude)
+    # if clause to prevent division by zero
+    if (np.sum(fft_magnitude) != 0):
+        spectral_centroid = np.sum(frequencies * fft_magnitude) / np.sum(fft_magnitude)
+    else: spectral_centroid = 0
+
 
     band_power_low = np.sum(fft_magnitude[(frequencies >= 0) & (frequencies < 2)])
     band_power_mid = np.sum(fft_magnitude[(frequencies >= 2) & (frequencies < 5)])

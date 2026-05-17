@@ -1,6 +1,5 @@
 # this program visualizes activities with pyglet
 
-#import activity_recognizer as activity
 import pyglet
 from pathlib import Path
 from pyglet import window
@@ -94,8 +93,6 @@ motivation = pyglet.text.Label("Keep going!",
                           weight = 'ultrabold',
                           x=WINDOW_WIDTH//2, y=100,
                           anchor_x='center', anchor_y='center')
-
-
 
 def fit_sprite_to_window(activity_name, top_margin=TOP_MARGIN, bottom_margin=BOTTOM_MARGIN, max_scale=MAX_SCALE):
     activity_frames = [pyglet.image.load(path) for path in activities[activity_name]]
@@ -216,6 +213,7 @@ def update(dt):
 def on_draw():
     win.clear()
 
+    # wait for model to finish training
     if not model_ready:
         waiting_1.draw()
         waiting_2.draw()
