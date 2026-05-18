@@ -2,7 +2,6 @@
 Zum Bewerten der accuracy auf einem unabhängigen set (Bewertung der Tutoren) bitte folgendes beachten:
 
     - Testdaten (als .csv) in den Ordner "test" ablegen
-    - test_model(TEST_PATH)  innerhalb der load_model()-funktion entkommentieren
 
 Dadurch wird beim Programmstart, nachdem das Modell fertig trainiert wurde, einmal die model-accuracy auf den Testdaten geprintet
 
