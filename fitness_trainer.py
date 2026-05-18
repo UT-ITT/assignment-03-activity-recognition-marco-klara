@@ -13,6 +13,8 @@ import activity_recognizer as activity
 import threading
 from collections import deque
 
+from sklearn.metrics import accuracy_score
+
 from gather_data import interval, sensor, handle_acceleration, handle_gyro
 import gather_data
 
@@ -192,16 +194,34 @@ def predict_activity(model):
         # get prediction for the sample
         prediction = model.predict(pd.DataFrame([df_features]))[0]
         return prediction
+    
+# function to return model accuracy on an independent test set
+def test_model(TEST_PATH):
+    global trained_model
+
+    df = activity.csv_feature_extraction(TEST_PATH)
+
+    # select features and targets for prediction
+    features = df.drop(columns=["activity", "name"])
+    targets = df["activity"]
+
+    predictions = trained_model.predict(features)
+
+    print("Independent test data Accuracy: ", accuracy_score(targets, predictions))
+
+TEST_PATH = Path("")
 
 # load csv data and train model
 def load_model():
     global model_ready
     global trained_model
+    global TEST_PATH
 
     data = activity.csv_feature_extraction(DATA_DIR)
     trained_model = activity.train_model(data)
     model_ready = True
     print("Model trained")
+    #test_model(TEST_PATH)
 
 def update(dt):
     global remaining_time, timer_running, current_prediction, current_activity
