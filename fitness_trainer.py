@@ -209,7 +209,7 @@ def test_model(TEST_PATH):
 
     print("Independent test data Accuracy: ", accuracy_score(targets, predictions))
 
-TEST_PATH = Path("")
+TEST_PATH = THIS_DIR / "test"
 
 # load csv data and train model
 def load_model():
