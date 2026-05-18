@@ -6,6 +6,7 @@ from pyglet import window
 import random
 import math
 import time
+import sys
 import pandas as pd
 import activity_recognizer as activity
 
@@ -243,7 +244,8 @@ def on_draw():
 @win.event
 def on_key_press(symbol, modifiers):
     if symbol == pyglet.window.key.ESCAPE:
-        win.close()
+        pyglet.app.exit()
+        gather_data.sensor.disconnect()
 
 # start pyglet
 switch_activity(0)
