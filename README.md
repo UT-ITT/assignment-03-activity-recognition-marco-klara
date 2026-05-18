@@ -1,4 +1,4 @@
-####### WICHTIG #########
+#### WICHTIG 
 Zum Bewerten der accuracy auf einem unabhängigen set (Bewertung der Tutoren) bitte folgendes beachten:
 
     - TEST_PATH  auf den Ordner der die Testdaten als .csv beinhaltet setzen,
@@ -6,7 +6,7 @@ Zum Bewerten der accuracy auf einem unabhängigen set (Bewertung der Tutoren) bi
 
 Dadurch wird beim Programmstart, nachdem das Modell fertig trainiert wurde, einmal die model-accuracy auf den Testdaten geprintet
 
-####### APP Funktionsweise ######
+#### APP Funktionsweise 
 Der Fitness Trainer lässt sich starten, indem man die Datei fitness_trainer.py ausführt.
 Dann wird das Model mit den gesammelten Daten trainiert.
 Ist das Model fertig, wird die accuracy, sowie der F1 score im Terminal ausgegeben und man kommt zum eigentlichen Fitness Trainer.
@@ -15,7 +15,7 @@ Im Fenster ist ein Counter mit 10 Sekunden, der nur runterzählt, wenn die richt
 Sind die 10 Sekunden um, wird die nächste Aktivität angezeigt.
 Der Fitness Trainer lässt sich durch die esc-Taste schließen.
 
-####### Modell training #######
+#### Modell training 
 Die Trainingsdaten werden als .csv Dateien eingelesen.
 Damit die Trainingsdaten vergleichbar zu den Aufgenommenen Daten während des Trainings sind, müssen sie einheitlich sein.
 
