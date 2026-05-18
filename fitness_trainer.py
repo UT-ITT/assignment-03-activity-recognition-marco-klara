@@ -195,7 +195,7 @@ def predict_activity(model):
         prediction = model.predict(pd.DataFrame([df_features]))[0]
         return prediction
     
-# function to return model accuracy on an independent test set
+# function to print model accuracy on an independent test set
 def test_model(TEST_PATH):
     global trained_model
 
@@ -210,18 +210,21 @@ def test_model(TEST_PATH):
     print("Independent test data Accuracy: ", accuracy_score(targets, predictions))
 
 TEST_PATH = THIS_DIR / "test"
+test_data_available = bool(list(TEST_PATH.rglob("*.csv"))) # checks if folder contains csv files
 
 # load csv data and train model
 def load_model():
     global model_ready
     global trained_model
-    global TEST_PATH
+    global TEST_PATH, test_data_available
 
     data = activity.csv_feature_extraction(DATA_DIR)
     trained_model = activity.train_model(data)
     model_ready = True
     print("Model trained")
-    #test_model(TEST_PATH)
+
+    if test_data_available:
+        test_model(TEST_PATH)
 
 def update(dt):
     global remaining_time, timer_running, current_prediction, current_activity
